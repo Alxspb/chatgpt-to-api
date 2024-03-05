@@ -26,11 +26,14 @@ FROM scratch
 # Set the working directory
 WORKDIR /app
 
+# copy the ca-certificate.crt from the build stage
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
 # Copy the built Go binary from the builder stage
-COPY --from=builder /app/ChatGPT-To-API /app/ChatGPT-To-API
+COPY --from=builder /app/ChatGPT-To-API /bin/ChatGPT-To-API
 
 # Expose the port where the application is running
 EXPOSE 8080
 
 # Start the application
-CMD [ "./ChatGPT-To-API" ]
+CMD [ "/bin/ChatGPT-To-API" ]
