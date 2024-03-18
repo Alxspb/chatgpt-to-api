@@ -7,8 +7,10 @@ import (
 	official_types "freechatgpt/typings/official"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func passwordHandler(c *gin.Context) {
@@ -100,11 +102,31 @@ func nightmare(c *gin.Context) {
 		// Push used proxy to the back of the list
 		proxies = append(proxies[1:], proxies[0])
 	}
-
+	uid := uuid.NewString()
+	var chat_require *chatgpt.ChatRequire
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		err = chatgpt.InitWSConn(token, uid, proxy_url)
+	}()
+	go func() {
+		defer wg.Done()
+		chat_require = chatgpt.CheckRequire(token, puid, proxy_url)
+	}()
+	wg.Wait()
+	if err != nil {
+		c.JSON(500, gin.H{"error": "unable to create ws tunnel"})
+		return
+	}
+	if chat_require == nil {
+		c.JSON(500, gin.H{"error": "unable to check chat requirement"})
+		return
+	}
 	// Convert the chat request to a ChatGPT request
-	translated_request := chatgpt_request_converter.ConvertAPIRequest(original_request, puid, proxy_url)
+	translated_request := chatgpt_request_converter.ConvertAPIRequest(original_request, puid, chat_require.Arkose.Required, proxy_url)
 
-	response, err := chatgpt.POSTconversation(translated_request, token, puid, proxy_url)
+	response, err := chatgpt.POSTconversation(translated_request, token, puid, chat_require.Token, proxy_url)
 	if err != nil {
 		c.JSON(500, gin.H{
 			"error": "error sending request",
@@ -119,7 +141,7 @@ func nightmare(c *gin.Context) {
 	for i := 3; i > 0; i-- {
 		var continue_info *chatgpt.ContinueInfo
 		var response_part string
-		response_part, continue_info = chatgpt.Handler(c, response, token, puid, translated_request, original_request.Stream)
+		response_part, continue_info = chatgpt.Handler(c, response, token, puid, uid, translated_request, original_request.Stream)
 		full_response += response_part
 		if continue_info == nil {
 			break
@@ -129,10 +151,10 @@ func nightmare(c *gin.Context) {
 		translated_request.Action = "continue"
 		translated_request.ConversationID = continue_info.ConversationID
 		translated_request.ParentMessageID = continue_info.ParentID
-		if strings.HasPrefix(original_request.Model, "gpt-4") {
+		if chat_require.Arkose.Required {
 			chatgpt_request_converter.RenewTokenForRequest(&translated_request, puid, proxy_url)
 		}
-		response, err = chatgpt.POSTconversation(translated_request, token, puid, proxy_url)
+		response, err = chatgpt.POSTconversation(translated_request, token, puid, chat_require.Token, proxy_url)
 		if err != nil {
 			c.JSON(500, gin.H{
 				"error": "error sending request",
@@ -152,5 +174,5 @@ func nightmare(c *gin.Context) {
 	} else {
 		c.String(200, "data: [DONE]\n\n")
 	}
-
+	chatgpt.UnlockSpecConn(token, uid)
 }
