@@ -114,7 +114,7 @@ func nightmare(c *gin.Context) {
 	var deviceId string
 	if account == "" {
 		deviceId = uid
-		chatgpt.SetOAICookie(uid)
+		chatgpt.SetOAICookie(deviceId)
 	} else {
 		deviceId = generateUUID(account)
 		chatgpt.SetOAICookie(deviceId)
@@ -145,7 +145,7 @@ func nightmare(c *gin.Context) {
 	}
 	var proofToken string
 	if chat_require.Proof.Required {
-		proofToken = chatgpt.CalcProofToken(chat_require.Proof.Seed, chat_require.Proof.Difficulty, proxy_url)
+		proofToken = chatgpt.CalcProofToken(chat_require, proxy_url)
 	}
 	// Convert the chat request to a ChatGPT request
 	translated_request := chatgpt_request_converter.ConvertAPIRequest(original_request, account, &secret, deviceId, chat_require.Arkose.Required, chat_require.Arkose.DX, proxy_url)
@@ -165,7 +165,7 @@ func nightmare(c *gin.Context) {
 	for i := 3; i > 0; i-- {
 		var continue_info *chatgpt.ContinueInfo
 		var response_part string
-		response_part, continue_info = chatgpt.Handler(c, response, &secret, deviceId, uid, translated_request, original_request.Stream)
+		response_part, continue_info = chatgpt.Handler(c, response, &secret, proxy_url, deviceId, uid, original_request.Stream)
 		full_response += response_part
 		if continue_info == nil {
 			break
@@ -175,6 +175,10 @@ func nightmare(c *gin.Context) {
 		translated_request.Action = "continue"
 		translated_request.ConversationID = continue_info.ConversationID
 		translated_request.ParentMessageID = continue_info.ParentID
+		chat_require = chatgpt.CheckRequire(&secret, deviceId, proxy_url)
+		if chat_require.Proof.Required {
+			proofToken = chatgpt.CalcProofToken(chat_require, proxy_url)
+		}
 		if chat_require.Arkose.Required {
 			chatgpt_request_converter.RenewTokenForRequest(&translated_request, secret.PUID, chat_require.Arkose.DX, proxy_url)
 		}
@@ -198,5 +202,5 @@ func nightmare(c *gin.Context) {
 	} else {
 		c.String(200, "data: [DONE]\n\n")
 	}
-	chatgpt.UnlockSpecConn(secret.Token, uid)
+	chatgpt.UnlockSpecConn(secret.Token+secret.TeamUserID, uid)
 }
