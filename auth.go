@@ -13,6 +13,7 @@ import (
 
 	"freechatgpt/internal/tokens"
 
+	"github.com/sirupsen/logrus"
 	"github.com/xqdoo00o/OpenAIAuth/auth"
 )
 
@@ -232,6 +233,7 @@ func updateSingleToken(email string, password string, token_list map[string]toke
 		proxies = append(proxies[1:], proxies[0])
 	}
 	authenticator := auth.NewAuthenticator(email, password, proxy_url)
+	logrus.WithField("authenticator", authenticator).Info("Created authenticator")
 	err := authenticator.RenewWithCookies()
 	if err != nil {
 		authenticator.ResetCookies()

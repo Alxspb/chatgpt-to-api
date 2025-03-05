@@ -11,6 +11,7 @@ require (
 	github.com/go-resty/resty/v2 v2.12.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
+	github.com/sirupsen/logrus v1.9.3
 	github.com/tidwall/gjson v1.17.1
 	github.com/xqdoo00o/OpenAIAuth v0.0.0-20250123201147-b6e4778be9f3
 	golang.org/x/crypto v0.23.0

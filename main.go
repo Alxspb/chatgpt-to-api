@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"freechatgpt/internal/tokens"
+	"github.com/sirupsen/logrus"
 	"os"
 	"strings"
 
@@ -44,6 +45,7 @@ func checkProxy() {
 			proxies = append(proxies, proxy)
 		}
 	}
+	logrus.WithField("proxies", proxies).Info("checkProxy")
 }
 
 func init() {
