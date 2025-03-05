@@ -233,7 +233,10 @@ func updateSingleToken(email string, password string, token_list map[string]toke
 		proxies = append(proxies[1:], proxies[0])
 	}
 	authenticator := auth.NewAuthenticator(email, password, proxy_url)
-	logrus.WithField("authenticator", authenticator).Info("Created authenticator")
+	logrus.WithFields(logrus.Fields{
+		"authenticator": authenticator,
+		"proxy_url":     proxy_url,
+	}).Info("Created authenticator")
 	err := authenticator.RenewWithCookies()
 	if err != nil {
 		authenticator.ResetCookies()
